@@ -23,6 +23,7 @@ jobs:
           repository: ${{ secrets.CONTENT_REPO }}
           token: ${{ secrets.GH_TOKEN }}
           path: content-site
+          fetch-depth: 0
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
