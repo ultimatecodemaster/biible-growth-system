@@ -1,0 +1,29 @@
+{
+  "name": "biible-growth-system",
+  "version": "1.0.0",
+  "description": "Autonomous Growth System for Biible content generation",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "ags:run": "tsx src/index.ts",
+    "ags:cloud": "CLOUD_MODE=true tsx src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "openai": "^4.28.0",
+    "zod": "^3.23.8",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "simple-git": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.11.30",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.5"
+  }
+}
+

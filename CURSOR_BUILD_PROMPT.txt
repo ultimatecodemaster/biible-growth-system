@@ -1,0 +1,37 @@
+Follow PLAYBOOK.md exactly. Implement the entire system end-to-end.
+
+Non-negotiable: multi-agent council with one PM orchestrator and distinct role prompts in /prompts.
+
+Create prompt files in /prompts:
+- topic_researcher.md
+- scripture_mapper.md
+- content_composer.md
+- formatter.md
+- interlinker.md
+- safety_officer.md
+- publisher.md
+
+Implement a PM orchestrator that runs roles sequentially:
+1) Topic Researcher -> data/topics.csv (20 LOW-risk queries + cluster/topic)
+2) Scripture Mapper -> data/verse_maps/{slug}.json (zod-validated)
+3) Content Composer -> data/drafts/{slug}.mdx (MDX template)
+4) Formatter (optional, local Ollama OK)
+5) Interlinker (optional, local Ollama OK)
+6) Safety Officer (OpenAI only) -> veto to data/flagged with reason
+7) Publisher -> copy approved drafts into biible-content-site/src/content/questions and open PR using GH_TOKEN + CONTENT_REPO
+
+Hard rules:
+- No full verse quotes; references + brief context only
+- Stop + flag HIGH-risk topics: salvation/hell, sexuality, politics, end-times, divorce/remarriage
+- Every MDX page includes:
+  - H1 exact query
+  - Intro
+  - Key passages
+  - Common follow-up questions linking to https://biible.net?q={urlencoded}
+  - Footer: Scripture doesn’t change. Tools do. Biible.net supports study; it doesn’t replace pastoral counsel.
+
+Add npm scripts:
+- ags:run
+- ags:cloud (CLOUD_MODE=true disables Ollama and uses OpenAI for all roles)
+
+Make it minimal but fully working with clear logs.
