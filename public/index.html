@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biible Growth System - Status</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .header p {
+      color: #666;
+      font-size: 1.1em;
+    }
+    
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card h2 {
+      font-size: 1.3em;
+      margin-bottom: 15px;
+      color: #667eea;
+    }
+    
+    .stat {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #764ba2;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 0.9em;
+    }
+    
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    
+    .info-box p {
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+    
+    .info-box code {
+      background: rgba(0, 0, 0, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    
+    .loading {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.9);
+      margin-top: 20px;
+      font-size: 0.9em;
+    }
+    
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 2em;
+      }
+      
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 Biible Growth System</h1>
+      <p>Autonomous Content Generation System</p>
+    </div>
+    
+    <div class="card">
+      <div class="info-box">
+        <h2 style="margin-top: 0; color: #2196f3;">ℹ️ About This System</h2>
+        <p><strong>This is the Growth System backend.</strong> It's a Node.js script that runs autonomously to generate content for the Biible website.</p>
+        <p><strong>For the actual website:</strong> Visit your <code>biible-content-site</code> repository on Vercel to see the generated content.</p>
+        <p><strong>What this system does:</strong></p>
+        <ul style="margin-left: 20px; margin-top: 10px;">
+          <li>Researches topics using AI</li>
+          <li>Generates content based on biblical topics</li>
+          <li>Validates and formats content</li>
+          <li>Creates pull requests to the content site</li>
+          <li>Runs autonomously via GitHub Actions</li>
+        </ul>
+        <p style="margin-top: 15px;"><strong>Status:</strong> <span id="status">System is deployed and running ✅</span></p>
+        <p><strong>Last updated:</strong> <span id="timestamp"></span></p>
+      </div>
+    </div>
+    
+    <div class="loading">
+      <p>Loading live status data...</p>
+    </div>
+  </div>
+  
+  <script>
+    // Set timestamp
+    document.getElementById('timestamp').textContent = new Date().toLocaleString();
+    
+    // Try to load status from API
+    fetch('/api/status')
+      .then(response => {
+        if (response.ok) {
+          return response.text();
+        }
+        throw new Error('API not available');
+      })
+      .then(html => {
+        // If we get HTML back, replace the page content
+        document.body.innerHTML = html;
+      })
+      .catch(error => {
+        console.log('API not available, showing static page');
+        document.querySelector('.loading').style.display = 'none';
+      });
+  </script>
+</body>
+</html>
+

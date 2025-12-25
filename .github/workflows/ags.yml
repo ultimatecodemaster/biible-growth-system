@@ -36,6 +36,14 @@ jobs:
         working-directory: growth-system
         run: npm ci
       
+      - name: Download learning data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: learning-data
+          path: growth-system
+          if-no-files-found: ignore
+        continue-on-error: true
+      
       - name: Run AGS
         working-directory: growth-system
         env:
@@ -43,7 +51,28 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           CONTENT_REPO: ${{ secrets.CONTENT_REPO }}
           CLOUD_MODE: "true"
+          CEO_ENABLED: ${{ secrets.CEO_ENABLED || 'true' }}
+          # Optional: Platform-specific API keys
+          MEDIUM_API_KEY: ${{ secrets.MEDIUM_API_KEY }}
+          DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+          WORDPRESS_URL: ${{ secrets.WORDPRESS_URL }}
+          WORDPRESS_USER: ${{ secrets.WORDPRESS_USER }}
+          WORDPRESS_PASSWORD: ${{ secrets.WORDPRESS_PASSWORD }}
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+          TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
+          LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
         run: npm run ags:cloud
+      
+      - name: Upload learning data artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: learning-data
+          path: growth-system/learning-data.json
+          retention-days: 90
+          if-no-files-found: ignore
+        continue-on-error: true
       
       # Note: PRs are created by the Publisher agent in the growth system
       # This step is a fallback if needed, but Publisher handles it automatically

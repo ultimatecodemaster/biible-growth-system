@@ -76,15 +76,23 @@ echo "   2. Permissions: repo (full control)"
 echo "   3. Run: gh secret set GH_TOKEN"
 echo ""
 
-# Deploy to Vercel
-if command -v vercel >/dev/null 2>&1; then
-  echo "🚀 Deploying to Vercel..."
-  cd ../biible-content-site
-  vercel --prod --yes 2>&1 | tail -5 || echo "⚠️  Run: vercel login first"
-else
-  echo "⚠️  Vercel CLI not installed. Install with: brew install vercel-cli"
-  echo "   Then: vercel login && vercel --prod"
-fi
+# Vercel deployment (manual - requires interactive login)
+echo ""
+echo "🚀 Vercel Deployment (Manual Step Required):"
+echo "   Vercel requires interactive authentication. Choose one:"
+echo ""
+echo "   Option 1 - Web UI (Recommended):"
+echo "   1. Go to: https://vercel.com"
+echo "   2. Sign in with GitHub"
+echo "   3. Click 'Add New Project'"
+echo "   4. Select your biible-content-site repo"
+echo "   5. Click 'Deploy'"
+echo ""
+echo "   Option 2 - CLI (If you prefer):"
+echo "   1. cd ../biible-content-site"
+echo "   2. vercel login  (this opens your browser)"
+echo "   3. vercel --prod"
+echo ""
 
 echo ""
 echo "✅ Setup complete!"

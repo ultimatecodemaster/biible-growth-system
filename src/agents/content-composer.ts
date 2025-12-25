@@ -4,6 +4,7 @@ import { join } from 'path'
 import { callLLM } from '../llm/client.js'
 import { loadPrompt, formatPrompt } from '../llm/prompts.js'
 import { urlEncodeQuery } from '../utils/url-encode.js'
+import { containsPersonalInfo } from '../utils/personal-info-sanitizer.js'
 import type { VerseMap } from '../schemas.js'
 
 export async function runContentComposer(
@@ -20,6 +21,15 @@ export async function runContentComposer(
   const response = await callLLM('content_composer', prompt)
   
   console.log(`[Content Composer] Generated MDX for: ${query}`)
+  
+  // Validate content for personal information in URLs
+  console.log(`[Content Composer] Validating content for personal information in URLs...`)
+  if (containsPersonalInfo(response)) {
+    console.error(`[Content Composer] ERROR: Generated content contains personal information in URLs`)
+    console.error(`[Content Composer] Content preview: ${response.substring(0, 500)}...`)
+    throw new Error('Generated content contains personal information in URLs. This is not allowed.')
+  }
+  console.log(`[Content Composer] Content validated - no personal information detected in URLs`)
   
   const dataDir = join(process.cwd(), 'data', 'drafts')
   ensureDirSync(dataDir)

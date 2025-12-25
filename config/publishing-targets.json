@@ -1,0 +1,15 @@
+{
+  "targets": [
+    {
+      "id": "biible-main",
+      "type": "vercel",
+      "enabled": true,
+      "priority": 1,
+      "config": {
+        "repo": "${CONTENT_REPO}",
+        "path": "../biible-content-site"
+      }
+    }
+  ]
+}
+

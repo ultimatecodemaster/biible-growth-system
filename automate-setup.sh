@@ -61,17 +61,23 @@ else
   echo "   https://github.com/$GROWTH_REPO/settings/secrets/actions"
 fi
 
-# Try Vercel deployment
-if command -v vercel >/dev/null 2>&1; then
-  echo ""
-  echo "🚀 Deploying to Vercel..."
-  cd ../biible-content-site
-  vercel --prod --yes 2>&1 | tail -5 || echo "⚠️  Vercel deployment needs authentication"
-else
-  echo ""
-  echo "⚠️  Vercel CLI not available. Deploy manually:"
-  echo "   https://vercel.com - Add project → Select $CONTENT_REPO"
-fi
+# Vercel deployment (manual - requires interactive login)
+echo ""
+echo "🚀 Vercel Deployment (Manual Step Required):"
+echo "   Vercel login must be done interactively. Choose one:"
+echo ""
+echo "   Option 1 - Web UI (Easiest):"
+echo "   1. Go to: https://vercel.com"
+echo "   2. Sign in with GitHub"
+echo "   3. Click 'Add New Project'"
+echo "   4. Select: $CONTENT_REPO"
+echo "   5. Click 'Deploy'"
+echo ""
+echo "   Option 2 - CLI (If you prefer):"
+echo "   1. cd ../biible-content-site"
+echo "   2. vercel login  (opens browser for auth)"
+echo "   3. vercel --prod"
+echo ""
 
 echo ""
 echo "✅ Setup complete! Check above for any manual steps needed."

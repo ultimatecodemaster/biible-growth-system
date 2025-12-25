@@ -9,9 +9,11 @@
     }
   },
   "routing": {
+    "ceo_coordinator": "openai",
     "topic_researcher": "openai",
     "scripture_mapper": "openai",
     "content_composer": "openai",
+    "seo_metadata": "openai",
     "safety_officer": "openai",
     "formatter": "ollama",
     "interlinker": "ollama"

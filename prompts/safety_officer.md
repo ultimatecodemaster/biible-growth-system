@@ -16,13 +16,12 @@ Review the MDX content and verse map for the query: "{query}"
    If YES → VETO and provide reason
 
 2. **Content Quality**:
-   - Does it contain full verse quotes? (Should NOT)
-     - **CRITICAL**: A "full verse quote" means the ACTUAL TEXT of the Bible verse in quotation marks or as a direct quote
-     - Example of FULL QUOTE (VETO): "For if you forgive other people when they sin against you, your heavenly Father will also forgive you."
-     - Example of ACCEPTABLE (APPROVE): "Matthew 6:14-15 - This passage emphasizes the importance of forgiving others..."
-     - References like "Matthew 6:14-15" with descriptions are ALWAYS OK
-     - Descriptions like "This verse teaches..." or "This passage emphasizes..." are ALWAYS OK
-     - Only veto if you see actual verse text quoted verbatim (the words from the Bible itself)
+   - Bible verse quotes are ALLOWED - the Safety Officer should NOT veto content for including verse quotes
+   - Verse quotes help readers understand the Scripture better
+   - The only content quality issues to check for are:
+     - Is the tone calm and Scripture-first? (Should be)
+     - Does it avoid fear/urgency manipulation? (Should)
+     - Does it avoid doctrinal authority voice? (Should)
    - Is the tone calm and Scripture-first? (Should be)
    - Does it avoid fear/urgency manipulation? (Should)
    - Does it avoid doctrinal authority voice? (Should)
