@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync } from 'fs'
+import { copyFileSync, existsSync, readFileSync, statSync } from 'fs'
 import { ensureDirSync } from 'fs-extra'
 import { join } from 'path'
 import simpleGit from 'simple-git'
@@ -21,6 +21,14 @@ export async function runPublisher(
   const draftPath = join(process.cwd(), 'data', 'drafts', `${slug}.mdx`)
   if (!existsSync(draftPath)) {
     throw new Error(`Draft file not found: ${draftPath}`)
+  }
+
+  // Validate content before creating PR
+  const validationResult = validateContent(draftPath, query)
+  if (!validationResult.valid) {
+    console.warn(`[Publisher] Content validation failed: ${validationResult.reason}`)
+    console.log(`[Publisher] Skipping PR creation for "${query}" - ${validationResult.reason}`)
+    return
   }
   
   // In CI, content repo might be in a different location
@@ -45,7 +53,17 @@ export async function runPublisher(
   const targetPath = join(targetDir, `${slug}.mdx`)
   copyFileSync(draftPath, targetPath)
   
-  console.log(`[Publisher] Copied to ${targetPath}`)
+  console.log(`[Publisher] Copied MDX to ${targetPath}`)
+  
+  // Also copy structured data JSON if it exists
+  const structuredDataPath = join(process.cwd(), 'data', 'drafts', `${slug}.structured-data.json`)
+  if (existsSync(structuredDataPath)) {
+    const structuredDataTargetDir = join(contentRepoPath, 'src', 'content', 'structured-data')
+    ensureDirSync(structuredDataTargetDir)
+    const structuredDataTargetPath = join(structuredDataTargetDir, `${slug}.json`)
+    copyFileSync(structuredDataPath, structuredDataTargetPath)
+    console.log(`[Publisher] Copied structured data to ${structuredDataTargetPath}`)
+  }
   
   const git = simpleGit(contentRepoPath)
   const timestamp = Date.now()
@@ -81,5 +99,90 @@ export async function runPublisher(
   
   console.log(`[Publisher] Opened PR: branch ${branchName}`)
   console.log(`[Publisher] PR URL: https://github.com/${contentRepo}/compare/${branchName}`)
+}
+
+/**
+ * Validates MDX content before publishing to prevent blank deployments
+ * Checks file size, frontmatter presence, and actual content
+ */
+function validateContent(filePath: string, query: string): { valid: boolean; reason?: string } {
+  try {
+    // Check file size (minimum 100 bytes to ensure it's not empty)
+    const stats = statSync(filePath)
+    if (stats.size < 100) {
+      return {
+        valid: false,
+        reason: `File too small (${stats.size} bytes). Minimum 100 bytes required.`
+      }
+    }
+
+    // Read file content
+    const fileContent = readFileSync(filePath, 'utf-8')
+    const trimmedContent = fileContent.trim()
+
+    // Check if file is empty
+    if (trimmedContent.length === 0) {
+      return {
+        valid: false,
+        reason: 'File is empty'
+      }
+    }
+
+    // Check for frontmatter (must start with ---)
+    if (!trimmedContent.startsWith('---')) {
+      return {
+        valid: false,
+        reason: 'Missing frontmatter (file must start with ---)'
+      }
+    }
+
+    // Extract frontmatter
+    const frontmatterEnd = trimmedContent.indexOf('---', 3)
+    if (frontmatterEnd === -1) {
+      return {
+        valid: false,
+        reason: 'Invalid frontmatter (missing closing ---)'
+      }
+    }
+
+    const frontmatter = trimmedContent.substring(0, frontmatterEnd + 3)
+    const contentAfterFrontmatter = trimmedContent.substring(frontmatterEnd + 3).trim()
+
+    // Check that there's actual content after frontmatter
+    if (contentAfterFrontmatter.length < 50) {
+      return {
+        valid: false,
+        reason: `Insufficient content after frontmatter (${contentAfterFrontmatter.length} chars). Minimum 50 characters required.`
+      }
+    }
+
+    // Check for required frontmatter fields
+    const requiredFields = ['title', 'metaTitle', 'metaDescription', 'canonicalUrl']
+    for (const field of requiredFields) {
+      if (!frontmatter.includes(`${field}:`)) {
+        return {
+          valid: false,
+          reason: `Missing required frontmatter field: ${field}`
+        }
+      }
+    }
+
+    // Check that content has at least one heading (H1 or H2)
+    if (!contentAfterFrontmatter.match(/^#+\s+/m)) {
+      return {
+        valid: false,
+        reason: 'Content missing required heading (H1 or H2)'
+      }
+    }
+
+    // All validations passed
+    console.log(`[Publisher] Content validation passed for "${query}" (${stats.size} bytes, ${contentAfterFrontmatter.length} chars content)`)
+    return { valid: true }
+  } catch (error) {
+    return {
+      valid: false,
+      reason: `Validation error: ${error instanceof Error ? error.message : String(error)}`
+    }
+  }
 }
 

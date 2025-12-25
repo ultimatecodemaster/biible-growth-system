@@ -1,0 +1,43 @@
+# Vercel Ignore File
+# Copy this to your biible-content-site repository as .vercelignore
+# This file excludes unnecessary files from Vercel deployments to optimize builds
+
+# Development files
+.env
+.env.local
+.env.*.local
+*.log
+*.log.*
+
+# Build artifacts (if not using dist/)
+.cache
+.temp
+.tmp
+
+# Development dependencies
+node_modules/.cache
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+**/__tests__/**
+**/*.test.*
+**/*.spec.*
+
+# Documentation (if not needed in production)
+docs/
+*.md
+!README.md
+
+# Source maps (optional - exclude if not needed)
+**/*.map
+
