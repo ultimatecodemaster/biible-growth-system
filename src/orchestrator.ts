@@ -9,8 +9,18 @@ import { runInterlinker } from './agents/interlinker.js'
 import { runSafetyOfficer } from './agents/safety-officer.js'
 import { runPublisher } from './agents/publisher.js'
 import { runCEOCoordinator, type CEOContext } from './agents/ceo-coordinator.js'
-import { publishToAllTargets } from './publishers/publisher-factory.js'
+import { publishToAllTargets, getEnabledPublishers } from './publishers/publisher-factory.js'
+import { VercelPublisher } from './publishers/vercel-publisher.js'
 import type { TopicRow, VerseMap, SEOMetadata } from './schemas.js'
+
+interface ApprovedArticle {
+  query: string
+  slug: string
+  cluster: string
+  mdxContent: string
+  seoMetadata?: SEOMetadata
+  verseMap: VerseMap
+}
 import { recordError, recordSuccess, getRecoveryStrategy } from './utils/self-improvement.js'
 import { canProceedWithAgent, performHealthCheck, recordAgentSuccess, recordAgentFailure, testRecovery } from './utils/health-monitor.js'
 import { logWithTime, logError as loggerError, logWarn } from './utils/logger.js'
@@ -113,6 +123,7 @@ export async function runOrchestrator(): Promise<void> {
     
     let approvedCount = 0
     let vetoedCount = 0
+    const approvedArticles: ApprovedArticle[] = [] // Collect approved articles for batch publishing
     
     // Process each topic through the pipeline
     for (const topic of lowRiskTopics) {
@@ -298,92 +309,20 @@ export async function runOrchestrator(): Promise<void> {
           continue
         }
         
-        // Step 8: Multi-Target Publisher
-        logWithTime(`[ORCHESTRATOR] Step 8/8: Multi-Target Publisher - Starting...`)
-        const step8Start = Date.now()
+        // Step 8: Collect approved article for batch publishing
+        // Instead of publishing immediately, collect for batch publishing by cluster
+        approvedArticles.push({
+          query: topic.query,
+          slug,
+          cluster: topic.cluster, // Use cluster from the topic
+          mdxContent,
+          seoMetadata,
+          verseMap
+        })
         
-        try {
-          // Use new multi-target publisher (seoMetadata already captured in step 4)
-          const publishResults = await publishToAllTargets({
-            query: topic.query,
-            slug,
-            mdxContent,
-            seoMetadata,
-            verseMap
-          })
-          
-          const successCount = publishResults.filter(r => r.success).length
-          const failCount = publishResults.filter(r => !r.success).length
-          
-          if (successCount > 0) {
-            recordAgentEvent('publisher', true)
-            const step8Duration = ((Date.now() - step8Start) / 1000).toFixed(2)
-            logWithTime(`[ORCHESTRATOR] Step 8/8: Multi-Target Publisher - Complete (${step8Duration}s)`)
-            logWithTime(`[ORCHESTRATOR] Published to ${successCount} platform(s) successfully`)
-            
-            // Log successful platform URLs
-            for (const result of publishResults) {
-              if (result.success && result.url) {
-                logWithTime(`[ORCHESTRATOR] ✓ ${result.platform}: ${result.url}`)
-              }
-            }
-            
-            if (failCount > 0) {
-              logWithTime(`[ORCHESTRATOR] ⚠️  ${failCount} platform(s) failed to publish`)
-              for (const result of publishResults) {
-                if (!result.success) {
-                  logWithTime(`[ORCHESTRATOR] ✗ ${result.platform}: ${result.error || 'Unknown error'}`)
-                }
-              }
-            }
-          } else {
-            // All platforms failed - fallback to legacy publisher for backward compatibility
-            logWithTime(`[ORCHESTRATOR] All multi-target publishers failed, trying legacy publisher...`)
-            await runPublisher(
-              topic.query,
-              slug,
-              process.env.CONTENT_REPO,
-              process.env.GH_TOKEN
-            )
-            recordAgentEvent('publisher', true)
-            const step8Duration = ((Date.now() - step8Start) / 1000).toFixed(2)
-            logWithTime(`[ORCHESTRATOR] Step 8/8: Legacy Publisher - Complete (${step8Duration}s)`)
-          }
-          
-          const topicDuration = ((Date.now() - topicStart) / 1000).toFixed(2)
-          approvedCount++
-          logWithTime(`[ORCHESTRATOR] ✓ Successfully processed: ${topic.query} (Total: ${topicDuration}s)`)
-        } catch (error) {
-          recordAgentEvent('publisher', false, error, { topic: topic.query, slug })
-          const recovery = getRecoveryStrategy(error, 'publisher')
-          logWithTime(`[ORCHESTRATOR] Publisher error: ${recovery.strategy}`)
-          
-          if (recovery.shouldRetry && recovery.waitTime > 0) {
-            logWithTime(`[ORCHESTRATOR] Waiting ${recovery.waitTime / 1000}s before retry...`)
-            await new Promise(resolve => setTimeout(resolve, recovery.waitTime))
-            
-            // Retry with legacy publisher as fallback
-            try {
-              await runPublisher(
-                topic.query,
-                slug,
-                process.env.CONTENT_REPO,
-                process.env.GH_TOKEN
-              )
-              recordAgentEvent('publisher', true)
-              const step8Duration = ((Date.now() - step8Start) / 1000).toFixed(2)
-              logWithTime(`[ORCHESTRATOR] Step 8/8: Publisher (Retry) - Complete (${step8Duration}s)`)
-              
-              const topicDuration = ((Date.now() - topicStart) / 1000).toFixed(2)
-              approvedCount++
-              logWithTime(`[ORCHESTRATOR] ✓ Successfully processed: ${topic.query} (Total: ${topicDuration}s)`)
-            } catch (retryError) {
-              throw retryError
-            }
-          } else {
-            throw error
-          }
-        }
+        const topicDuration = ((Date.now() - topicStart) / 1000).toFixed(2)
+        approvedCount++
+        logWithTime(`[ORCHESTRATOR] ✓ Approved and queued: ${topic.query} (${topic.cluster}) (Total: ${topicDuration}s)`)
         
       } catch (error) {
         const topicDuration = ((Date.now() - topicStart) / 1000).toFixed(2)
@@ -392,6 +331,81 @@ export async function runOrchestrator(): Promise<void> {
         recordError('orchestrator', error, { topic: topic.query })
         vetoedCount++
       }
+    }
+    
+    // After processing all topics, publish by cluster in batches
+    if (approvedArticles.length > 0) {
+      logWithTime(`\n[ORCHESTRATOR] Publishing ${approvedArticles.length} approved articles grouped by cluster...`)
+      
+      // Group by cluster
+      const clusterGroups = new Map<string, ApprovedArticle[]>()
+      for (const article of approvedArticles) {
+        const cluster = article.cluster || 'general'
+        if (!clusterGroups.has(cluster)) {
+          clusterGroups.set(cluster, [])
+        }
+        clusterGroups.get(cluster)!.push(article)
+      }
+      
+      logWithTime(`[ORCHESTRATOR] Grouped into ${clusterGroups.size} cluster(s)`)
+      
+      // Publish each cluster as a batch
+      for (const [cluster, articles] of clusterGroups.entries()) {
+        logWithTime(`\n[ORCHESTRATOR] Publishing cluster: ${cluster} (${articles.length} articles)`)
+        
+        try {
+          // Get Vercel publisher from factory
+          const publishers = getEnabledPublishers()
+          const vercelPublisher = publishers.find(p => p instanceof VercelPublisher) as VercelPublisher | undefined
+          
+          if (vercelPublisher && typeof (vercelPublisher as any).publishBatch === 'function') {
+            const batchItems = articles.map(a => ({
+              query: a.query,
+              slug: a.slug,
+              cluster: a.cluster
+            }))
+            
+            const result = await (vercelPublisher as any).publishBatch(batchItems)
+            
+            if (result.success) {
+              logWithTime(`[ORCHESTRATOR] ✅ Published ${cluster} cluster: ${result.url}`)
+              logWithTime(`[ORCHESTRATOR] 📦 ${articles.length} articles in batch`)
+              recordAgentEvent('publisher', true)
+            } else {
+              logWithTime(`[ORCHESTRATOR] ❌ Failed to publish ${cluster} cluster: ${result.error}`)
+              recordAgentEvent('publisher', false, new Error(result.error || 'Batch publish failed'), { cluster, articleCount: articles.length })
+            }
+          } else {
+            // Fallback: publish individually if batch method not available
+            logWithTime(`[ORCHESTRATOR] Batch publishing not available, publishing individually...`)
+            for (const article of articles) {
+              try {
+                const publishResults = await publishToAllTargets({
+                  query: article.query,
+                  slug: article.slug,
+                  mdxContent: article.mdxContent,
+                  seoMetadata: article.seoMetadata,
+                  verseMap: article.verseMap
+                })
+                
+                const successCount = publishResults.filter(r => r.success).length
+                if (successCount > 0) {
+                  recordAgentEvent('publisher', true)
+                } else {
+                  recordAgentEvent('publisher', false, new Error('All publishers failed'), { query: article.query })
+                }
+              } catch (error) {
+                recordAgentEvent('publisher', false, error, { query: article.query })
+              }
+            }
+          }
+        } catch (error) {
+          logWithTime(`[ORCHESTRATOR] Error publishing ${cluster} cluster: ${error}`)
+          recordError('publisher', error, { cluster, articleCount: articles.length })
+        }
+      }
+    } else {
+      logWithTime(`[ORCHESTRATOR] No approved articles to publish`)
     }
     
     logWithTime('\n' + '='.repeat(60))

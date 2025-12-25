@@ -12,7 +12,7 @@ interface ErrorRecord {
   resolution?: string
 }
 
-interface LearningData {
+export interface LearningData {
   errorPatterns: Record<string, {
     count: number
     lastOccurred: string
