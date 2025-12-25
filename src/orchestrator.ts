@@ -24,6 +24,7 @@ interface ApprovedArticle {
 import { recordError, recordSuccess, getRecoveryStrategy } from './utils/self-improvement.js'
 import { canProceedWithAgent, performHealthCheck, recordAgentSuccess, recordAgentFailure, testRecovery } from './utils/health-monitor.js'
 import { logWithTime, logError as loggerError, logWarn } from './utils/logger.js'
+import { getAPIUsageStats, estimateCost, logAPIUsageSummary } from './utils/api-quota-monitor.js'
 
 // Helper to record both self-improvement and circuit breaker events
 function recordAgentEvent(agent: string, success: boolean, error?: Error | unknown, context?: Record<string, unknown>): void {
@@ -49,8 +50,9 @@ export async function runOrchestrator(): Promise<void> {
   testRecovery()
   
   // CEO Coordinator - Strategic decision making (if enabled)
+  // Default to disabled to save API costs - enable with CEO_ENABLED=true
   let ceoDecision = null
-  const ceoEnabled = process.env.CEO_ENABLED !== 'false' // Default to enabled
+  const ceoEnabled = process.env.CEO_ENABLED === 'true'
   if (ceoEnabled) {
     logWithTime('\n[ORCHESTRATOR] CEO Coordinator - Starting strategic analysis...')
     const ceoStart = Date.now()
@@ -119,14 +121,22 @@ export async function runOrchestrator(): Promise<void> {
     
     // Filter to only LOW-risk topics
     const lowRiskTopics = topics.filter(t => t.risk === 'low')
-    logWithTime(`[ORCHESTRATOR] Processing ${lowRiskTopics.length} LOW-risk topics`)
+    logWithTime(`[ORCHESTRATOR] Generated ${lowRiskTopics.length} LOW-risk topics`)
+    
+    // Limit topics per run to control API costs
+    const maxTopicsPerRun = parseInt(process.env.MAX_TOPICS_PER_RUN || '5')
+    const topicsToProcess = lowRiskTopics.slice(0, maxTopicsPerRun)
+    logWithTime(`[ORCHESTRATOR] Processing ${topicsToProcess.length} topics (limited by MAX_TOPICS_PER_RUN=${maxTopicsPerRun})`)
+    if (lowRiskTopics.length > maxTopicsPerRun) {
+      logWithTime(`[ORCHESTRATOR] Note: ${lowRiskTopics.length - maxTopicsPerRun} topics will be processed in future runs`)
+    }
     
     let approvedCount = 0
     let vetoedCount = 0
     const approvedArticles: ApprovedArticle[] = [] // Collect approved articles for batch publishing
     
     // Process each topic through the pipeline
-    for (const topic of lowRiskTopics) {
+    for (const topic of topicsToProcess) {
       logWithTime(`\n[ORCHESTRATOR] Processing topic: ${topic.query}`)
       const topicStart = Date.now()
       
@@ -413,7 +423,19 @@ export async function runOrchestrator(): Promise<void> {
     logWithTime('='.repeat(60))
     logWithTime(`Approved: ${approvedCount}`)
     logWithTime(`Vetoed/Skipped: ${vetoedCount}`)
-    logWithTime(`Total: ${lowRiskTopics.length}`)
+    logWithTime(`Total Processed: ${topicsToProcess.length}`)
+    
+    // Log API usage and cost estimate for this run
+    const stats = getAPIUsageStats()
+    const estimatedCost = estimateCost(stats.total.tokens)
+    logWithTime(`\n[ORCHESTRATOR] API Usage Summary:`)
+    logWithTime(`  Total API Calls: ${stats.total.requests}`)
+    logWithTime(`  Total Tokens: ${stats.total.tokens.toLocaleString()}`)
+    logWithTime(`  Estimated Cost: $${estimatedCost.toFixed(4)}`)
+    logWithTime(`  Daily Calls: ${stats.daily.requests}`)
+    logWithTime(`  Daily Tokens: ${stats.daily.tokens.toLocaleString()}`)
+    const dailyCost = estimateCost(stats.daily.tokens)
+    logWithTime(`  Daily Estimated Cost: $${dailyCost.toFixed(4)}`)
     
     // Perform final health check
     const finalHealth = performHealthCheck()

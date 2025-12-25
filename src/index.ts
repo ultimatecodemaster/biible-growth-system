@@ -213,9 +213,12 @@ async function main() {
         break
       }
       
-      const waitTime = 60000 // Wait 1 minute between runs
-      const waitMinutes = waitTime / 1000 / 60
-      logWithTime(`\n[MAIN] Run #${runCount} complete. Waiting ${waitMinutes} minute(s) before next run...`)
+      // Wait time between runs - default to 1 hour to control API costs
+      // Can be overridden with RUN_INTERVAL_MINUTES environment variable
+      const runIntervalMinutes = parseInt(process.env.RUN_INTERVAL_MINUTES || '60')
+      const waitTime = runIntervalMinutes * 60 * 1000
+      logWithTime(`\n[MAIN] Run #${runCount} complete. Waiting ${runIntervalMinutes} minute(s) before next run...`)
+      logWithTime(`[MAIN] To change interval, set RUN_INTERVAL_MINUTES environment variable (current: ${runIntervalMinutes} min)`)
       logWithTime(`Press Ctrl+C to stop.\n`)
       
       // Wait with periodic shutdown check

@@ -91,10 +91,34 @@ function formatDate(date: Date): string {
 }
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  console.log('[API] Status check requested')
+  console.log('[API] Handler called')
+  console.log('[API] Request URL:', req.url)
+  console.log('[API] Request method:', req.method)
+  console.log('[API] Current working directory:', process.cwd())
+  console.log('[API] Node version:', process.version)
+  
+  // Health check endpoint - returns JSON
+  if (req.url === '/api/health' || req.query.health === 'true') {
+    console.log('[API] Health check requested')
+    res.setHeader('Content-Type', 'application/json')
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      message: 'API is working correctly',
+      cwd: process.cwd(),
+      nodeVersion: process.version
+    })
+    return
+  }
   
   try {
+    console.log('[API] Getting status data...')
     const status = getStatusData()
+    console.log('[API] Status data retrieved:', {
+      draftCount: status.draftCount,
+      flaggedCount: status.flaggedCount,
+      isLocal: status.isLocal
+    })
     
     const html = `
 <!DOCTYPE html>
@@ -291,11 +315,14 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 </html>
     `
     
-    res.setHeader('Content-Type', 'text/html')
+    console.log('[API] Sending HTML response...')
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
     res.status(200).send(html)
     console.log('[API] Status page served successfully')
   } catch (error) {
     console.error('[API] Error generating status page:', error)
+    console.error('[API] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     
     // Always return HTML, even on error
     const errorHtml = `
@@ -341,8 +368,11 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 </body>
 </html>
     `
-    res.setHeader('Content-Type', 'text/html')
+    console.log('[API] Sending error HTML response...')
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
     res.status(200).send(errorHtml)
+    console.log('[API] Error page served')
   }
 }
 

@@ -4,19 +4,30 @@
  */
 
 /**
+ * Personal information that should NEVER appear in any content, URLs, or public-facing data
+ * This is a strict blocklist - if any of these appear, content is rejected
+ */
+const BLOCKED_PERSONAL_INFO = [
+  'ryan samuel martin',
+  'ryanmartin',
+  'ryan-martin',
+  'ryan_martin',
+  'ryansamuelmartin',
+  'ryan-samuel-martin',
+  'ryan_samuel_martin',
+]
+
+/**
  * Patterns that indicate personal information
  */
 const PERSONAL_INFO_PATTERNS = [
   // Email addresses
   /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
-  // Common username patterns (e.g., ryanmartin, user123)
+  // Common username patterns (e.g., user123)
   /\b(users?|user-|username|user_)[a-zA-Z0-9_-]*/gi,
   // File path patterns (e.g., /Users/ryanmartin, /home/user)
   /\/Users\/[a-zA-Z0-9_-]+/gi,
   /\/home\/[a-zA-Z0-9_-]+/gi,
-  // Common personal name patterns (detect common first/last name combinations)
-  // This is a basic check - we'll be more aggressive in sanitization
-  /\b(ryan|martin|john|jane|smith|doe)[a-zA-Z0-9_-]*/gi,
 ]
 
 /**
@@ -41,6 +52,15 @@ const PERSONAL_KEYWORDS = [
  */
 export function containsPersonalInfo(text: string): boolean {
   const lowerText = text.toLowerCase()
+  
+  // FIRST: Check for blocked personal information (strict blocklist)
+  for (const blockedInfo of BLOCKED_PERSONAL_INFO) {
+    if (lowerText.includes(blockedInfo.toLowerCase())) {
+      console.error(`[PersonalInfoSanitizer] BLOCKED: Detected personal information "${blockedInfo}" in content`)
+      console.error(`[PersonalInfoSanitizer] Content preview: ${text.substring(0, 200)}...`)
+      return true
+    }
+  }
   
   // Check for email addresses (always a red flag)
   if (/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text)) {
@@ -89,7 +109,13 @@ export function containsPersonalInfo(text: string): boolean {
  * Sanitizes a URL or domain by removing or replacing personal information
  */
 export function sanitizeUrl(url: string): string {
-  let sanitized = url
+  let sanitized = url.toLowerCase()
+  
+  // FIRST: Remove blocked personal information (strict blocklist)
+  for (const blockedInfo of BLOCKED_PERSONAL_INFO) {
+    const regex = new RegExp(blockedInfo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+    sanitized = sanitized.replace(regex, '[personal-info-removed]')
+  }
   
   // Remove email addresses
   sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[email-removed]')
@@ -127,6 +153,12 @@ export function validateUrlForPersonalInfo(url: string): void {
  */
 export function sanitizeSlug(slug: string): string {
   let sanitized = slug.toLowerCase()
+  
+  // FIRST: Remove blocked personal information (strict blocklist)
+  for (const blockedInfo of BLOCKED_PERSONAL_INFO) {
+    const regex = new RegExp(blockedInfo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+    sanitized = sanitized.replace(regex, '')
+  }
   
   // Remove any email-like patterns
   sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '')

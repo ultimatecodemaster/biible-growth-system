@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "/Users/ryanmartin/biible-growth-system/logs/.7fa1e1f5f19e53a00a113849e40b6e892c901ac2-audit.json",
+    "files": [
+        {
+            "date": 1766640208037,
+            "name": "/Users/ryanmartin/biible-growth-system/logs/ags-error-2025-12-25.log",
+            "hash": "c7456bdf87800183572e3a0611de58e061652b5a7bedbebd1e3c711475db9fd6"
+        }
+    ],
+    "hashType": "sha256"
+}

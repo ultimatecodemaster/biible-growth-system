@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Manual script to publish a single draft file
+// Run with: npx tsx manual-publish.js <slug>
+// Or: npm run publish:manual <slug>
 
 import 'dotenv/config'
 import { runPublisher } from './src/agents/publisher.js'
-import { createSlug } from './src/utils/slug.js'
 
 const slug = process.argv[2]
 

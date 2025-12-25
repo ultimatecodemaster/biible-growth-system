@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { trackAPIUsage } from '../utils/api-quota-monitor.js'
 
 interface ModelConfig {
   providers: {
@@ -71,7 +72,16 @@ async function callOpenAI(prompt: string, systemPrompt?: string, role?: string):
 
     const callDuration = ((Date.now() - callStart) / 1000).toFixed(2)
     const responseTimestamp = new Date().toISOString()
-    console.log(`[${responseTimestamp}] [LLM] Received response from OpenAI (${callDuration}s)`)
+    
+    // Track API usage for cost monitoring
+    const usage = response.usage
+    if (usage) {
+      const totalTokens = (usage.prompt_tokens || 0) + (usage.completion_tokens || 0)
+      trackAPIUsage(totalTokens)
+      console.log(`[${responseTimestamp}] [LLM] Received response from OpenAI (${callDuration}s) - Tokens: ${usage.prompt_tokens || 0} input + ${usage.completion_tokens || 0} output = ${totalTokens} total`)
+    } else {
+      console.log(`[${responseTimestamp}] [LLM] Received response from OpenAI (${callDuration}s)`)
+    }
 
     const content = response.choices[0]?.message?.content
     if (!content) {

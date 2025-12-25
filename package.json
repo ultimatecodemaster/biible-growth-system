@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc",
     "ags:run": "tsx src/index.ts",
-    "ags:cloud": "CLOUD_MODE=true tsx src/index.ts"
+    "ags:cloud": "CLOUD_MODE=true tsx src/index.ts",
+    "publish:manual": "tsx manual-publish.js"
   },
   "keywords": [],
   "author": "",

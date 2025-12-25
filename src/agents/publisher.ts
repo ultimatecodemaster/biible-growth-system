@@ -3,6 +3,7 @@ import { ensureDirSync } from 'fs-extra'
 import { join } from 'path'
 import simpleGit from 'simple-git'
 import { createSlug } from '../utils/slug.js'
+import { containsPersonalInfo } from '../utils/personal-info-sanitizer.js'
 
 export async function runPublisher(
   query: string,
@@ -97,8 +98,34 @@ export async function runPublisher(
   
   await git.push(['-u', 'origin', branchName])
   
-  console.log(`[Publisher] Opened PR: branch ${branchName}`)
-  console.log(`[Publisher] PR URL: https://github.com/${contentRepo}/compare/${branchName}`)
+  // Create PR using GitHub API
+  const [owner, repo] = contentRepo.split('/')
+  const prResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${ghToken}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      title: `AGS: Add ${query}`,
+      head: branchName,
+      base: 'main',
+      body: `Automated content generation for: ${query}\n\nThis PR was created by the Biible Autonomous Growth System.`
+    })
+  })
+  
+  if (prResponse.ok) {
+    const prData = await prResponse.json()
+    console.log(`[Publisher] ✅ PR created successfully!`)
+    console.log(`[Publisher] PR #${prData.number}: ${prData.html_url}`)
+    console.log(`[Publisher] PR URL: ${prData.html_url}`)
+  } else {
+    const errorData = await prResponse.json().catch(() => ({ message: 'Unknown error' }))
+    console.warn(`[Publisher] ⚠️  Could not create PR via API: ${errorData.message}`)
+    console.log(`[Publisher] Branch pushed: ${branchName}`)
+    console.log(`[Publisher] Create PR manually: https://github.com/${contentRepo}/compare/${branchName}`)
+  }
 }
 
 /**
@@ -174,6 +201,16 @@ function validateContent(filePath: string, query: string): { valid: boolean; rea
         reason: 'Content missing required heading (H1 or H2)'
       }
     }
+
+    // CRITICAL: Check for personal information in entire content (frontmatter + body)
+    console.log(`[Publisher] Validating content for personal information...`)
+    if (containsPersonalInfo(fileContent)) {
+      return {
+        valid: false,
+        reason: 'Content contains personal information (names, file paths, etc.) - BLOCKED for security'
+      }
+    }
+    console.log(`[Publisher] Personal information check passed`)
 
     // All validations passed
     console.log(`[Publisher] Content validation passed for "${query}" (${stats.size} bytes, ${contentAfterFrontmatter.length} chars content)`)
